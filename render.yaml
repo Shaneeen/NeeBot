@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: neebot-web
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python webapp.py
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: SUPABASE_DATABASE_URL
+        sync: false
+      - key: OWNER_TELEGRAM_USER_ID
+        sync: false
+      - key: APP_TIMEZONE
+        value: Asia/Singapore
+      - key: WEBAPP_PORT
+        value: "8080"
+
+  - type: worker
+    name: neebot-bot
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: SUPABASE_DATABASE_URL
+        sync: false
+      - key: OWNER_TELEGRAM_USER_ID
+        sync: false
+      - key: APP_TIMEZONE
+        value: Asia/Singapore

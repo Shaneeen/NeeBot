@@ -16,6 +16,8 @@ class Settings:
     supabase_database_url: str
     owner_telegram_user_id: int
     app_timezone: str = "Asia/Singapore"
+    miniapp_url: str = ""
+    webapp_port: int = 8080
 
     @property
     def tzinfo(self) -> ZoneInfo:
@@ -32,6 +34,8 @@ def get_settings() -> Settings:
     db_url = os.getenv("SUPABASE_DATABASE_URL", "").strip()
     owner_telegram_user_id = os.getenv("OWNER_TELEGRAM_USER_ID", "").strip()
     timezone = os.getenv("APP_TIMEZONE", "Asia/Singapore").strip() or "Asia/Singapore"
+    miniapp_url = os.getenv("MINIAPP_URL", "").strip()
+    webapp_port = int(os.getenv("WEBAPP_PORT", "8080"))
 
     missing = []
     if not token:
@@ -55,4 +59,6 @@ def get_settings() -> Settings:
         supabase_database_url=db_url,
         owner_telegram_user_id=owner_id,
         app_timezone=timezone,
+        miniapp_url=miniapp_url,
+        webapp_port=webapp_port,
     )

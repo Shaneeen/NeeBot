@@ -6,18 +6,13 @@ import re
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from .calendar import _format_event_when
 from .common import get_authorized_profile, safe_reply
 from .date_utils import parse_optional_date_args
 
 
 def _assignment_has_explicit_time(assignment: dict) -> bool:
     return bool(re.search(r"\b\d{2}:\d{2}\b", assignment.get("description") or ""))
-
-
-def _event_has_explicit_time(event: dict) -> bool:
-    return bool(re.search(r"\b\d{2}:\d{2}\b", event.get("description") or ""))
-
-
 async def today_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     profile = await get_authorized_profile(update, context)
     if not profile:
@@ -62,11 +57,7 @@ async def today_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     lines.append("[ events_ ]")
     if summary["events"]:
         for index, event in enumerate(summary["events"], start=1):
-            start_at = event["start_at"].astimezone(tz)
-            if _event_has_explicit_time(event):
-                event_text = f"{start_at.strftime('%d %b %Y, %H:%M')} — {event['title']}"
-            else:
-                event_text = f"{start_at.strftime('%d %b %Y')} — {event['title']}"
+            event_text = f"{_format_event_when(event, tz)} — {event['title']}"
             lines.append(f"↳ {index}. {event_text}")
     else:
         lines.append("No events today.")

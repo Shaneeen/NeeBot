@@ -137,6 +137,21 @@ Active assignments:
 1. Submit thesis — due 1 Jul 2025 09:00
 2. Fintech report — due 12 Jul 2025 23:59
 
+[ actions_ ]
+↳ /assignmentdelete 1 — delete assignment 1
+
+### `/assignmentdelete`
+
+#### no input
+
+Use this command to delete an assignment.
+
+`/assignmentdelete assignment_number`
+
+#### success
+
+Removed from your assignments.
+
 ### `/event`
 
 #### no input
@@ -144,10 +159,14 @@ Active assignments:
 Save an event:
 
 `/event MM-DD title`  
-`/event YYYY-MM-DD HH:MM title`
+`/event YYYY-MM-DD HH:MM title`  
+`/event MM-DD to MM-DD title`  
+`/event YYYY-MM-DD HH:MM to YYYY-MM-DD HH:MM title`
 
 `/event 07-04 Fireworks`  
-`/event 07-04 20:00 Fireworks night`
+`/event 07-04 20:00 Fireworks night`  
+`/event 07-04 to 10-04 Bali trip`  
+`/event 2025-07-04 09:00 to 2025-07-06 18:00 Team offsite`
 
 Year defaults to current. Time defaults to `09:00`.
 
@@ -156,7 +175,8 @@ Year defaults to current. Time defaults to `09:00`.
 Couldn't read that. Expected:
 
 `/event MM-DD title`  
-`/event 07-04 20:00 Fireworks night`
+`/event 07-04 20:00 Fireworks night`  
+`/event 07-04 to 10-04 Bali trip`
 
 #### success
 
@@ -176,6 +196,21 @@ Upcoming events:
 
 1. Sat 4 Jul 2025 08:00 PM — Fireworks night
 2. Mon 6 Jul 2025 09:00 AM — Team check-in
+
+[ actions_ ]
+↳ /eventdelete 1 — delete event 1
+
+### `/eventdelete`
+
+#### no input
+
+Use this command to delete an event.
+
+`/eventdelete event_number`
+
+#### success
+
+Removed from your events.
 
 ### `/calendar`
 

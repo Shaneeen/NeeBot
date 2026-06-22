@@ -97,11 +97,22 @@ python bot.py
 - `/diary`
 - `/assignment <text>`
 - `/assignments`
+- `/assignmentdelete <number>`
 - `/event YYYY-MM-DD HH:MM Title`
+- `/event YYYY-MM-DD to YYYY-MM-DD Title`
+- `/event YYYY-MM-DD HH:MM to YYYY-MM-DD HH:MM Title`
 - `/events`
+- `/eventdelete <number>`
 - `/mood <1-10> [energy <1-10>] [stress <1-10>]`
 
 ## Render Deployment
+
+This repo now supports two separate Render services:
+
+- `neebot-web` runs the website on port `8080`
+- `neebot-bot` runs the Telegram bot worker
+
+If you use the included [render.yaml](/Users/Shaneen/NeeBot/render.yaml), Render can create both services from the same repo.
 
 Build command:
 
@@ -109,7 +120,13 @@ Build command:
 pip install -r requirements.txt
 ```
 
-Start command:
+Web start command:
+
+```bash
+python webapp.py
+```
+
+Worker start command:
 
 ```bash
 python bot.py
@@ -119,7 +136,9 @@ Set these environment variables in Render:
 
 - `TELEGRAM_BOT_TOKEN`
 - `SUPABASE_DATABASE_URL`
+- `OWNER_TELEGRAM_USER_ID`
 - `APP_TIMEZONE`
+- `WEBAPP_PORT` for the web service, default `8080`
 
 ## Notes
 

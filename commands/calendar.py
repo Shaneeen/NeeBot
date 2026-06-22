@@ -15,7 +15,19 @@ def _event_has_explicit_time(event: dict) -> bool:
 
 def _format_event_when(event: dict, tz, *, show_dash_when_missing_time: bool = False) -> str:
     local_start = event["start_at"].astimezone(tz)
-    if _event_has_explicit_time(event):
+    local_end = event["end_at"].astimezone(tz) if event.get("end_at") else None
+    has_time = _event_has_explicit_time(event)
+
+    if local_end and local_end != local_start:
+        if has_time:
+            if local_start.date() == local_end.date():
+                return f"{local_start.strftime('%d %b %Y, %H:%M')} to {local_end.strftime('%H:%M')}"
+            return f"{local_start.strftime('%d %b %Y, %H:%M')} to {local_end.strftime('%d %b %Y, %H:%M')}"
+        if local_start.date() == local_end.date():
+            return local_start.strftime("%d %b %Y")
+        return f"{local_start.strftime('%d %b %Y')} to {local_end.strftime('%d %b %Y')}"
+
+    if has_time:
         return local_start.strftime("%d %b %Y, %H:%M")
     if show_dash_when_missing_time:
         return f"{local_start.strftime('%d %b %Y')} — -"
@@ -40,7 +52,7 @@ async def event_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     if not text:
         await safe_reply(
             update,
-            "[Schedule /event]\nSave an event:\n  /event DD-MM title\n  /event DD-MM-YYYY HH:MM title\n  /event DD Mon HH:MM title\n\n  /event 19-06 Fireworks\n  /event 19-06 20:00 Fireworks night\n  /event 19 Jun 20:00 Fireworks night\n\n→ Year defaults to current. Time defaults to 09:00.",
+            "[ event_ ]\n\nSave an event with a date, time, or date range.\n\n[ formats_ ]\n↳ /event DD-MM Title\n↳ /event DD-MM-YYYY HH:MM Title\n↳ /event DD Mon HH:MM Title\n↳ /event DD-MM to DD-MM Title\n↳ /event DD-MM-YYYY HH:MM to DD-MM-YYYY HH:MM Title\n\n[ examples_ ]\n↳ /event 19-06 Fireworks\n↳ /event 19-06 20:00 Fireworks night\n↳ /event 19 Jun 20:00 Fireworks night\n↳ /event 19-06 to 22-06 Bali trip\n↳ /event 19-06-2026 09:00 to 22-06-2026 18:00 Offsite\n\n[ note_ ]\n↳ Use to for events that span multiple dates.\n↳ The year defaults to the current year.\n↳ The time defaults to 09:00.",
         )
         return
     profile = await get_authorized_profile(update, context)
@@ -51,14 +63,42 @@ async def event_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     except ValueError:
         await safe_reply(
             update,
-            "[Schedule /event]\nCouldn't read that. Expected:\n  /event DD-MM title\n  /event 19-06 20:00 Fireworks night\n  /event 19 Jun 20:00 Fireworks night",
+            "[Schedule /event]\nCouldn't read that. Expected:\n  /event DD-MM title\n  /event 19-06 20:00 Fireworks night\n  /event 19 Jun 20:00 Fireworks night\n  /event 19-06 to 22-06 Bali trip\n  /event 19-06-2026 09:00 to 22-06-2026 18:00 Offsite",
         )
         return
     when = _format_event_when(
         event,
         context.application.bot_data["settings"].tzinfo,
     )
-    await safe_reply(update, f"📅 Event saved\n{event['title']} — {when}")
+    await safe_reply(
+        update,
+        f"[ event_saved_ ]\n\n↳ {event['title']}\n↳ {when}\n\nSaved to your events →",
+    )
+
+
+async def eventdelete_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    event_ref = " ".join(context.args).strip()
+    if not event_ref:
+        await safe_reply(
+            update,
+            "[ event_delete_ ]\n\nUse this command to delete an event.\n\n[ format_ ]\n↳ /eventdelete event_number\n\n[ example_ ]\n↳ /eventdelete 1\n\n[ note_ ]\n↳ Use /events to view your event numbers.",
+        )
+        return
+    profile = await get_authorized_profile(update, context)
+    if not profile:
+        return
+    event = context.application.bot_data["db"].delete_event(profile["id"], event_ref)
+    if not event:
+        await safe_reply(update, "Event not found. Use /events to view your upcoming event numbers.")
+        return
+    when = _format_event_when(
+        event,
+        context.application.bot_data["settings"].tzinfo,
+    )
+    await safe_reply(
+        update,
+        f"[ event_deleted_ ]\n\n↳ {event['title']}\n↳ {when}\n\nRemoved from your events →",
+    )
 
 
 async def events_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -67,13 +107,19 @@ async def events_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
     events = context.application.bot_data["db"].list_upcoming_events(profile["id"])
     if not events:
-        await safe_reply(update, "No upcoming events.")
+        await safe_reply(
+            update,
+            "[ events_ ]\n\nNo upcoming events.\n\n[ next_ ]\n↳ /event 19-06 Fireworks",
+        )
         return
     tz = context.application.bot_data["settings"].tzinfo
-    lines = ["[Schedule /events]", "Upcoming events:"]
+    lines = ["[ events_ ]", "", "Your upcoming events:", ""]
     for index, event in enumerate(events, start=1):
-        when = _format_event_when(event, tz, show_dash_when_missing_time=True)
-        lines.append(f"{index}. {when} — {event['title']}")
+        when = _format_event_when(event, tz)
+        lines.append(f"↳ {index}. {event['title']}")
+        lines.append(f"   {when}")
+        lines.append("")
+    lines.extend(["[ actions_ ]", "↳ /eventdelete 1 — delete event 1"])
     await safe_reply(update, "\n".join(lines))
 
 

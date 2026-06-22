@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 
-from telegram import Update
+from aiohttp import web
+from telegram import BotCommand, BotCommandScopeAllPrivateChats, BotCommandScopeChat, Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
+from webapp import create_webapp
+
 from commands import (
+    app_command,
     assignment_command,
+    assignmentdelete_command,
     assignments_command,
     approve_command,
     calendar_command,
@@ -18,6 +24,7 @@ from commands import (
     dumpview_command,
     done_command,
     event_command,
+    eventdelete_command,
     events_command,
     help_command,
     journal_command,
@@ -48,12 +55,29 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
         )
 
 
+async def post_init(application) -> None:
+    settings = application.bot_data["settings"]
+
+    shared_commands = [
+        BotCommand("today", "See today's overview"),
+        BotCommand("help", "View all commands"),
+        BotCommand("app", "Open NeenyKeeps mini app"),
+        BotCommand("event", "Add an event"),
+        BotCommand("todo", "Add a task"),
+        BotCommand("dump", "Create a brain dump"),
+        BotCommand("assignment", "Add an assignment or deadline"),
+    ]
+    await application.bot.set_my_commands(shared_commands, scope=BotCommandScopeAllPrivateChats())
+    await application.bot.set_my_commands(shared_commands, scope=BotCommandScopeChat(chat_id=settings.owner_telegram_user_id))
+
+
 def build_application():
     settings = get_settings()
-    app = ApplicationBuilder().token(settings.telegram_bot_token).build()
+    app = ApplicationBuilder().token(settings.telegram_bot_token).post_init(post_init).build()
     app.bot_data["settings"] = settings
     app.bot_data["db"] = Database(settings)
 
+    app.add_handler(CommandHandler("app", app_command))
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("owner", owner_command))
@@ -71,9 +95,11 @@ def build_application():
     app.add_handler(CommandHandler("journal", journal_command))
     app.add_handler(CommandHandler("diary", diary_command))
     app.add_handler(CommandHandler("assignment", assignment_command))
+    app.add_handler(CommandHandler("assignmentdelete", assignmentdelete_command))
     app.add_handler(CommandHandler("assignments", assignments_command))
     app.add_handler(CommandHandler("calendar", calendar_command))
     app.add_handler(CommandHandler("event", event_command))
+    app.add_handler(CommandHandler("eventdelete", eventdelete_command))
     app.add_handler(CommandHandler("events", events_command))
     app.add_handler(CommandHandler("mood", mood_command))
     app.add_error_handler(error_handler)
@@ -81,9 +107,40 @@ def build_application():
 
 
 def main() -> None:
+    settings = get_settings()
     app = build_application()
-    logger.info("Starting neebot")
-    app.run_polling()
+    db = Database(settings)
+
+    if settings.miniapp_url:
+        async def run_all():
+            webapp = create_webapp(settings, db)
+            runner = web.AppRunner(webapp)
+            await runner.setup()
+            site = web.TCPSite(runner, "0.0.0.0", settings.webapp_port)
+            await site.start()
+            logger.info("Mini app server running on port %s", settings.webapp_port)
+
+            async with app:
+                await app.initialize()
+                await app.start()
+                await app.updater.start_polling()
+                logger.info("Starting neebot with mini app server")
+
+                stop_event = asyncio.Event()
+                try:
+                    await stop_event.wait()
+                except (KeyboardInterrupt, SystemExit):
+                    pass
+                finally:
+                    await app.updater.stop()
+                    await app.stop()
+                    await app.shutdown()
+                    await runner.cleanup()
+
+        asyncio.run(run_all())
+    else:
+        logger.info("Starting neebot (no mini app — set MINIAPP_URL to enable)")
+        app.run_polling()
 
 
 if __name__ == "__main__":

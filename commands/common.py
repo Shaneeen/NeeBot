@@ -13,6 +13,9 @@ def display_name_from_user(user: Any) -> str:
 async def get_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> dict[str, Any]:
     user = update.effective_user
     db = context.application.bot_data["db"]
+    profile = db.get_profile_by_telegram_id(user.id)
+    if profile:
+        return profile
     return db.ensure_profile(user.id, display_name_from_user(user))
 
 
