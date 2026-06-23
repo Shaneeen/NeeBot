@@ -117,11 +117,15 @@ def _serialize_todo(t: dict) -> dict:
 
 
 def _serialize_event(e: dict) -> dict:
+    has_time = True
+    if e.get("description") == "__NO_TIME__":
+        has_time = False
     return {
         "id": str(e["id"]),
         "title": e["title"],
         "start_at": e["start_at"].isoformat() if e.get("start_at") else None,
         "end_at": e["end_at"].isoformat() if e.get("end_at") else None,
+        "has_time": has_time,
         "description": e.get("description"),
         "created_at": e["created_at"].isoformat() if e.get("created_at") else None,
     }
@@ -242,7 +246,9 @@ async def handle_events_create(request: web.Request) -> web.Response:
         return _json_response({"error": "Title is required"}, 400)
 
     event_date = body.get("date", date.today().isoformat())
-    event_time = body.get("time", "09:00")
+    raw_time = (body.get("time") or "").strip()
+    has_time = bool(raw_time)
+    event_time = raw_time or "09:00"
     try:
         d = date.fromisoformat(event_date)
         t = datetime.strptime(event_time, "%H:%M").time()
@@ -250,7 +256,8 @@ async def handle_events_create(request: web.Request) -> web.Response:
     except ValueError:
         return _json_response({"error": "Invalid date/time"}, 400)
 
-    event = db.create_event(user_id, title, start_at)
+    description = None if has_time else "__NO_TIME__"
+    event = db.create_event(user_id, title, start_at, description=description)
     return _json_response({"event": _serialize_event(event)}, 201)
 
 
@@ -345,7 +352,8 @@ async def handle_dumps_update(request: web.Request) -> web.Response:
     dump_id = request.match_info["id"]
     body = await request.json()
     content = body.get("content", "")
-    dump = db.update_brain_dump(user_id, dump_id, content)
+    header = body.get("header")
+    dump = db.update_brain_dump(user_id, dump_id, content, header=header)
     if not dump:
         return _json_response({"error": "Not found"}, 404)
     return _json_response({"dump": _serialize_dump(dump)})

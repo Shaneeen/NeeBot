@@ -652,7 +652,8 @@ function renderTask(t){
 }
 
 function renderEvent(ev, showDate){
-  var t = fmtTime(ev.start_at);
+  var hasTime = ev.has_time !== false;
+  var t = hasTime ? fmtTime(ev.start_at) : 'Anytime';
   var colors = ['rose','green','amber','info'];
   var ci = Math.abs(hashStr(ev.id)) % colors.length;
   var endStr = '';
@@ -662,7 +663,7 @@ function renderEvent(ev, showDate){
     endStr = mins>=60?Math.round(mins/60)+' hr':mins+' min';
   }
   var dateLabel = '';
-  if(showDate && ev.start_at){
+  if((showDate || !hasTime) && ev.start_at){
     var d = new Date(ev.start_at);
     dateLabel = DAYS[d.getDay()]+' '+d.getDate()+' '+MONTHS_S[d.getMonth()];
     if(ev.end_at && ev.end_at.slice(0,10) !== ev.start_at.slice(0,10)){
@@ -937,7 +938,7 @@ function renderSheet(){
       +'<div class="field"><label class="field__label">Due date</label><input class="input" id="sh-due" type="date"></div>'},
     event: {title:'New event', fields:'<div class="field"><label class="field__label">Event</label><input class="input" id="sh-title" placeholder="Event title"></div>'
       +'<div class="field"><label class="field__label">Date</label><input class="input" id="sh-date" type="date" value="'+TODAY.toISOString().slice(0,10)+'"></div>'
-      +'<div class="field"><label class="field__label">Time</label><input class="input" id="sh-time" type="time" value="09:00"></div>'},
+      +'<div class="field"><label class="field__label">Time <span style="text-transform:none;letter-spacing:normal;font-family:var(--sans);font-size:12px;color:var(--muted2)">(optional)</span></label><input class="input" id="sh-time" type="time" value=""></div>'},
     journal: {title:'Journal entry', fields:'<div class="field"><label class="field__label">How was your day?</label><textarea class="input" id="sh-text" rows="4" placeholder="Write something...">'+esc(currentText)+'</textarea></div>'},
   };
   var cfg = sheetMap[state.sheetType] || sheetMap.todo;
@@ -1035,7 +1036,7 @@ function saveSheet(){
     API.post('/api/events', {
       title:t.value.trim(),
       date:d?d.value:TODAY.toISOString().slice(0,10),
-      time:tm?tm.value:'09:00'
+      time:tm?tm.value:''
     }).then(function(){
       showToast('Event added'); state.sheetOpen=false; state.saving=false; loadPageData();
     }).catch(function(){ state.saving=false; showToast('Failed'); render(); });
@@ -1297,7 +1298,10 @@ function saveCurrentNote(cb){
   }
   state.dumpView.content = newContent;
   state.dumpView.header = titleEl.value;
-  API.patch('/api/dumps/'+state.dumpView.id, {content:newContent}).then(function(data){
+  API.patch('/api/dumps/'+state.dumpView.id, {
+    header:titleEl.value,
+    content:newContent
+  }).then(function(data){
     state.dumpView = data.dump;
     var badge = document.getElementById('nv-saved');
     if(badge){ badge.classList.add('is-on'); setTimeout(function(){ badge.classList.remove('is-on'); }, 1500); }

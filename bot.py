@@ -1,13 +1,8 @@
 from __future__ import annotations
 
-import asyncio
 import logging
-
-from aiohttp import web
 from telegram import BotCommand, BotCommandScopeAllPrivateChats, BotCommandScopeChat, Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-
-from webapp import create_webapp
 
 from commands import (
     app_command,
@@ -107,40 +102,9 @@ def build_application():
 
 
 def main() -> None:
-    settings = get_settings()
     app = build_application()
-    db = Database(settings)
-
-    if settings.miniapp_url:
-        async def run_all():
-            webapp = create_webapp(settings, db)
-            runner = web.AppRunner(webapp)
-            await runner.setup()
-            site = web.TCPSite(runner, "0.0.0.0", settings.webapp_port)
-            await site.start()
-            logger.info("Mini app server running on port %s", settings.webapp_port)
-
-            async with app:
-                await app.initialize()
-                await app.start()
-                await app.updater.start_polling()
-                logger.info("Starting neebot with mini app server")
-
-                stop_event = asyncio.Event()
-                try:
-                    await stop_event.wait()
-                except (KeyboardInterrupt, SystemExit):
-                    pass
-                finally:
-                    await app.updater.stop()
-                    await app.stop()
-                    await app.shutdown()
-                    await runner.cleanup()
-
-        asyncio.run(run_all())
-    else:
-        logger.info("Starting neebot (no mini app — set MINIAPP_URL to enable)")
-        app.run_polling()
+    logger.info("Starting neebot")
+    app.run_polling()
 
 
 if __name__ == "__main__":

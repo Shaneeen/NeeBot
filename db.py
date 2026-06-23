@@ -486,20 +486,30 @@ class Database:
                 )
             return cur.fetchone()
 
-    def update_brain_dump(self, user_id: str, dump_ref: str, content: str) -> dict[str, Any] | None:
+    def update_brain_dump(
+        self,
+        user_id: str,
+        dump_ref: str,
+        content: str,
+        header: str | None = None,
+    ) -> dict[str, Any] | None:
         dump = self.get_brain_dump(user_id, dump_ref)
         if not dump:
             return None
+        next_header = header.strip() if header is not None else dump["header"]
+        if not next_header:
+            next_header = "Untitled"
         with self.connection() as conn, conn.cursor() as cur:
             cur.execute(
                 """
                 UPDATE brain_dumps
-                SET content = %s,
+                SET header = %s,
+                    content = %s,
                     updated_at = NOW()
                 WHERE id = %s AND user_id = %s
                 RETURNING *
                 """,
-                (content, dump["id"], user_id),
+                (next_header, content, dump["id"], user_id),
             )
             row = cur.fetchone()
             conn.commit()
@@ -850,15 +860,22 @@ class Database:
             conn.commit()
             return row
 
-    def create_event(self, user_id: str, title: str, start_at: datetime, end_at: datetime | None = None) -> dict[str, Any]:
+    def create_event(
+        self,
+        user_id: str,
+        title: str,
+        start_at: datetime,
+        end_at: datetime | None = None,
+        description: str | None = None,
+    ) -> dict[str, Any]:
         with self.connection() as conn, conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO calendar_events (user_id, title, start_at, end_at)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO calendar_events (user_id, title, description, start_at, end_at)
+                VALUES (%s, %s, %s, %s, %s)
                 RETURNING *
                 """,
-                (user_id, title, start_at, end_at),
+                (user_id, title, description, start_at, end_at),
             )
             row = cur.fetchone()
             conn.commit()
