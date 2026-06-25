@@ -12,9 +12,11 @@ from typing import Any
 from urllib.parse import parse_qs
 
 from aiohttp import web
+from telegram import Update
 
 from db import Database
 from config import get_settings
+from telegram_app import build_application
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +37,14 @@ def _json_response(data: Any, status: int = 200) -> web.Response:
         status=status,
         content_type="application/json",
     )
+
+
+def _derive_public_base_url(settings) -> str:
+    if settings.webhook_base_url:
+        return settings.webhook_base_url.rstrip("/")
+    if settings.miniapp_url:
+        return settings.miniapp_url.removesuffix("/").removesuffix("/miniapp")
+    return ""
 
 
 def validate_init_data(init_data: str, bot_token: str) -> dict | None:
@@ -416,6 +426,21 @@ async def serve_miniapp(request: web.Request) -> web.Response:
     return web.FileResponse(index)
 
 
+async def handle_telegram_webhook(request: web.Request) -> web.Response:
+    settings = request.app["settings"]
+    if settings.webhook_secret:
+        header = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+        if header != settings.webhook_secret:
+            return _json_response({"error": "Forbidden"}, 403)
+
+    payload = await request.json()
+    telegram_app = request.app["telegram_app"]
+    update = Update.de_json(payload, telegram_app.bot)
+    if update:
+        await telegram_app.process_update(update)
+    return web.Response(text="OK")
+
+
 def create_webapp(settings, db: Database) -> web.Application:
     app = web.Application(middlewares=[cors_middleware, auth_middleware])
     app["db"] = db
@@ -444,8 +469,42 @@ def create_webapp(settings, db: Database) -> web.Application:
     app.router.add_patch("/api/dumps/{id}", handle_dumps_update)
     app.router.add_delete("/api/dumps/{id}", handle_dumps_delete)
     app.router.add_get("/api/calendar", handle_calendar)
+    app.router.add_post("/telegram/webhook", handle_telegram_webhook)
+
+    app.on_startup.append(start_telegram_webhook)
+    app.on_cleanup.append(stop_telegram_webhook)
 
     return app
+
+
+async def start_telegram_webhook(app: web.Application) -> None:
+    telegram_app = build_application()
+    await telegram_app.initialize()
+    await telegram_app.start()
+    app["telegram_app"] = telegram_app
+
+    settings = app["settings"]
+    base_url = _derive_public_base_url(settings)
+    if not base_url:
+        logger.warning("WEBHOOK_BASE_URL or MINIAPP_URL is not set; Telegram webhook was not registered")
+        return
+
+    webhook_url = f"{base_url}/telegram/webhook"
+    await telegram_app.bot.set_webhook(
+        url=webhook_url,
+        secret_token=settings.webhook_secret or None,
+    )
+    logger.info("Telegram webhook registered at %s", webhook_url)
+
+
+async def stop_telegram_webhook(app: web.Application) -> None:
+    telegram_app = app.get("telegram_app")
+    if not telegram_app:
+        return
+    await telegram_app.bot.delete_webhook(drop_pending_updates=False)
+    await telegram_app.stop()
+    await telegram_app.shutdown()
+    logger.info("Telegram webhook application stopped")
 
 
 def main() -> None:

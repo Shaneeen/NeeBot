@@ -17,6 +17,8 @@ class Settings:
     owner_telegram_user_id: int
     app_timezone: str = "Asia/Singapore"
     miniapp_url: str = ""
+    webhook_base_url: str = ""
+    webhook_secret: str = ""
     webapp_port: int = 8080
 
     @property
@@ -35,6 +37,8 @@ def get_settings() -> Settings:
     owner_telegram_user_id = os.getenv("OWNER_TELEGRAM_USER_ID", "").strip()
     timezone = os.getenv("APP_TIMEZONE", "Asia/Singapore").strip() or "Asia/Singapore"
     miniapp_url = os.getenv("MINIAPP_URL", "").strip()
+    webhook_base_url = os.getenv("WEBHOOK_BASE_URL", "").strip()
+    webhook_secret = os.getenv("WEBHOOK_SECRET", "").strip()
     webapp_port = int(os.getenv("WEBAPP_PORT", "8080"))
 
     missing = []
@@ -60,5 +64,7 @@ def get_settings() -> Settings:
         owner_telegram_user_id=owner_id,
         app_timezone=timezone,
         miniapp_url=miniapp_url,
+        webhook_base_url=webhook_base_url,
+        webhook_secret=webhook_secret,
         webapp_port=webapp_port,
     )

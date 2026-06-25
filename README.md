@@ -107,12 +107,11 @@ python bot.py
 
 ## Render Deployment
 
-This repo now supports two separate Render services:
+This repo now supports a single Render web service:
 
-- `neebot-web` runs the website on port `8080`
-- `neebot-bot` runs the Telegram bot worker
+- `neebot-web` runs the mini app and receives Telegram webhook updates
 
-If you use the included [render.yaml](/Users/Shaneen/NeeBot/render.yaml), Render can create both services from the same repo.
+If you use the included [render.yaml](/Users/Shaneen/NeeBot/render.yaml), Render can create the service from the repo.
 
 Build command:
 
@@ -120,16 +119,10 @@ Build command:
 pip install -r requirements.txt
 ```
 
-Web start command:
+Start command:
 
 ```bash
 python webapp.py
-```
-
-Worker start command:
-
-```bash
-python bot.py
 ```
 
 Set these environment variables in Render:
@@ -138,10 +131,12 @@ Set these environment variables in Render:
 - `SUPABASE_DATABASE_URL`
 - `OWNER_TELEGRAM_USER_ID`
 - `APP_TIMEZONE`
+- `WEBHOOK_BASE_URL` set to your public Render base URL, for example `https://your-service.onrender.com`
+- `WEBHOOK_SECRET` optional but recommended
 - `WEBAPP_PORT` for the web service, default `8080`
 
 ## Notes
 
-- The bot uses polling for the first version, which keeps local deployment simple.
+- The bot now uses Telegram webhooks through `webapp.py`; `bot.py` no longer runs polling.
 - Reminders are modeled in the schema but not yet processed by a background sender.
 - Todo completion accepts either the todo UUID or the list number from `/todos`.

@@ -13,20 +13,9 @@ services:
         sync: false
       - key: APP_TIMEZONE
         value: Asia/Singapore
+      - key: WEBHOOK_BASE_URL
+        sync: false
+      - key: WEBHOOK_SECRET
+        sync: false
       - key: WEBAPP_PORT
         value: "8080"
-
-  - type: worker
-    name: neebot-bot
-    env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: python bot.py
-    envVars:
-      - key: TELEGRAM_BOT_TOKEN
-        sync: false
-      - key: SUPABASE_DATABASE_URL
-        sync: false
-      - key: OWNER_TELEGRAM_USER_ID
-        sync: false
-      - key: APP_TIMEZONE
-        value: Asia/Singapore
