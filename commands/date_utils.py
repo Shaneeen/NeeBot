@@ -47,9 +47,9 @@ def format_human_date(target_date: date, today: date) -> str:
     return target_date.strftime("%d %b %Y")
 
 
-def parse_todo_date_args(args: list[str], default_date: date) -> tuple[date, str]:
+def parse_todo_date_args(args: list[str], default_date: date) -> tuple[date | None, str]:
     if not args:
-        return default_date, ""
+        return None, ""
 
     lowered = [arg.strip().lower() for arg in args]
 
@@ -66,7 +66,7 @@ def parse_todo_date_args(args: list[str], default_date: date) -> tuple[date, str
     if lowered[0] in WEEKDAY_MAP:
         return _resolve_weekday(default_date, WEEKDAY_MAP[lowered[0]]), " ".join(args[1:]).strip()
 
-    return default_date, " ".join(args).strip()
+    return None, " ".join(args).strip()
 
 
 def week_bounds(target_date: date) -> tuple[date, date]:

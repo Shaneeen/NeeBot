@@ -35,11 +35,12 @@ async def todo_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     profile = await get_authorized_profile(update, context)
     if not profile:
         return
-    due_at = datetime.combine(due_date, time(9, 0), tzinfo=tz)
+    due_at = datetime.combine(due_date, time(9, 0), tzinfo=tz) if due_date else None
     todo = context.application.bot_data["db"].add_todo(profile["id"], text, due_at=due_at)
+    date_label = format_human_date(due_date, today) if due_date else "no due date"
     await safe_reply(
         update,
-        f"✅ Todo added — {format_human_date(due_date, today)}\n{todo['title']}",
+        f"✅ Todo added — {date_label}\n{todo['title']}",
     )
 
 
@@ -53,11 +54,7 @@ async def todos_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     if not lowered:
         todos = context.application.bot_data["db"].list_pending_todos(profile["id"])
-        today_todos = []
-        for todo in todos:
-            if todo["due_at"] and todo["due_at"].astimezone(tz).date() == today:
-                today_todos.append(todo)
-        if not today_todos:
+        if not todos:
             await safe_reply(
                 update,
                 "[ pending_tasks_ ]\n\n"
@@ -67,9 +64,13 @@ async def todos_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 "↳ /today — view your daily overview",
             )
             return
-        lines = ["[ pending_tasks — today_ ]", ""]
-        for index, todo in enumerate(today_todos, start=1):
-            lines.append(f"↳ {index}. {todo['title']}")
+        lines = ["[ pending_tasks_ ]", ""]
+        for index, todo in enumerate(todos, start=1):
+            if todo["due_at"]:
+                due_label = format_human_date(todo["due_at"].astimezone(tz).date(), today)
+                lines.append(f"↳ {index}. {todo['title']} — {due_label}")
+            else:
+                lines.append(f"↳ {index}. {todo['title']}")
         lines.append("")
         lines.extend(
             [
